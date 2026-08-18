@@ -4,21 +4,25 @@ Contexto para asistentes que trabajen en este repo.
 
 ## Qué es
 
-**Rutakon** (rutakon.com; repo GitHub: jaumeinsa/cimas): sube una foto de montaña y la app etiqueta los picos que aparecen
-(nombre, altitud, distancia) proyectándolos sobre la imagen. App independiente,
-sin base de datos. Se autohospeda en un VPS con Docker + Nginx.
+**Rutakon** (rutakon.com; repo GitHub: jaumeinsa/cimas): cámara en vivo que
+etiqueta las cimas que tienes delante (nombre, altitud) sobre la propia imagen.
+Un solo botón: se abre el visor, disparas y sale la foto anotada. App
+independiente, sin base de datos. Se autohospeda en un VPS con Docker + Nginx.
 
 ## Stack
 
 - Next.js 14 (App Router) + TypeScript + Tailwind. Sin base de datos.
-- `exifr` (EXIF), API de Anthropic (verificación con IA, opcional).
+- API de Anthropic (afinado con IA en segundo plano, opcional).
 
 ## Mapa del código
 
-- `src/app/page.tsx` — página única con `PeakIdentifier`.
-- `src/components/PeakIdentifier.tsx` — todo el flujo cliente: EXIF,
-  geolocalización/brújula, canvas con etiquetas, calibración por arrastre,
-  llamada a la IA y descarga.
+- `src/app/page.tsx` — página única con `CameraPeaks`.
+- `src/components/CameraPeaks.tsx` — todo el flujo cliente: visor en vivo
+  (getUserMedia) con etiquetas proyectadas usando GPS + brújula + inclinación
+  leídos en directo, disparo (congela el frame anotado), afinado automático
+  con IA en segundo plano y guardar/compartir. Sin subir fotos ni opciones
+  manuales: los sensores se muestrean en el momento del disparo porque las
+  fotos capturadas por el navegador no llevan EXIF de GPS/rumbo.
 - `src/lib/peaks/geo.ts` — geodesia: haversine, rumbo, ángulo de elevación con
   curvatura+refracción (k=0,13), FOV desde focal 35 mm.
 - `src/lib/peaks/visibility.ts` — selección: oclusión heurística por sectores
@@ -34,7 +38,10 @@ sin base de datos. Se autohospeda en un VPS con Docker + Nginx.
 - Overpass exige User-Agent identificativo (sin él devuelve 406) y sus espejos
   fallan a menudo: mantener la lista de fallback.
 - La app debe funcionar entera sin `ANTHROPIC_API_KEY` (la IA es opcional).
-- La foto no sale del dispositivo salvo para la verificación con IA.
+- La foto no sale del dispositivo salvo para el afinado con IA.
+- Cero opciones en la interfaz: un botón para abrir el visor, otro para
+  disparar. Nada de subir fotos, coordenadas a mano ni calibraciones.
+- HTTPS obligatorio en producción: sin él iOS bloquea cámara, brújula y GPS.
 
 ## Comandos
 

@@ -1,4 +1,4 @@
-import PeakIdentifier from "@/components/PeakIdentifier";
+import CameraPeaks from "@/components/CameraPeaks";
 
 export default function HomePage() {
   return (
@@ -32,13 +32,13 @@ export default function HomePage() {
             <br />
             <span className="text-accent">en tu foto?</span>
           </h1>
-          <p className="mt-3 text-ink-muted">Sube la foto y te lo decimos.</p>
+          <p className="mt-3 text-ink-muted">Apunta, dispara y te lo decimos.</p>
         </section>
 
-        <PeakIdentifier />
+        <CameraPeaks />
 
         <p className="mx-auto mt-10 max-w-2xl text-center text-xs text-ink-muted">
-          Tu foto no sale del móvil, salvo si usas la IA. Datos de cimas: ©{" "}
+          Datos de cimas: ©{" "}
           <a href="https://www.openstreetmap.org" className="underline" rel="noreferrer" target="_blank">
             OpenStreetMap
           </a>{" "}
