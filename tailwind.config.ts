@@ -8,20 +8,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Paleta Rutakon (heredada del proyecto Senda): verde bosque + naranja.
-        pine: { DEFAULT: "#1f5132", soft: "#2f6f4f", tint: "#ecf3ee" },
-        accent: { DEFAULT: "#e8590c", dark: "#d9480f", soft: "#f08c00", tint: "#fdf0e5" },
-        cream: "#faf8f3",
-        paper: "#ffffff",
-        ink: { DEFAULT: "#1f2a24", muted: "#6b7770" },
-        line: "#e6e1d6",
+        // Tokens de la marca Rutakon (los del planificador en rutakon.com):
+        // tinta #26221a, hueso #ede6d6, kraft #e2d8c2, naranja #d4551a.
+        // Se mantienen los nombres de clase originales para re-pintar todo.
+        pine: { DEFAULT: "#26221a", soft: "#3a3427", tint: "#f2ecdc" },
+        accent: { DEFAULT: "#d4551a", dark: "#a33417", soft: "#e07a45", tint: "#f6e3d3" },
+        cream: "#ede6d6",
+        paper: "#faf7ee",
+        ink: { DEFAULT: "#26221a", muted: "#6b6250" },
+        line: "#e2d8c2",
       },
       fontFamily: {
-        display: ["Fraunces", "Georgia", "serif"],
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        display: ["'Archivo Black'", "Barlow", "sans-serif"],
+        cap: ["'Barlow Condensed'", "Barlow", "sans-serif"],
+        sans: ["Barlow", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
-        card: "0 10px 30px rgba(31, 42, 36, 0.18)",
+        card: "0 10px 30px rgba(38, 34, 26, 0.16)",
       },
     },
   },

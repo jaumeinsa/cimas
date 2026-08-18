@@ -73,7 +73,8 @@ if ! command -v nginx >/dev/null 2>&1; then
 fi
 
 log "Configurando el virtual host de Nginx"
-cat > /etc/nginx/sites-available/rutakon <<EOF
+VHOST="fotos-${DOMAIN}"
+cat > "/etc/nginx/sites-available/${VHOST}" <<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -95,7 +96,7 @@ server {
     }
 }
 EOF
-ln -sf /etc/nginx/sites-available/rutakon /etc/nginx/sites-enabled/rutakon
+ln -sf "/etc/nginx/sites-available/${VHOST}" "/etc/nginx/sites-enabled/${VHOST}"
 nginx -t && systemctl reload nginx
 echo "  Nginx sirviendo en HTTP."
 
