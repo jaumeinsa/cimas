@@ -11,9 +11,13 @@ import type {
 } from "@/lib/peaks/types";
 
 const SEARCH_RADIUS_M = 60000;
-const MAX_LABELS = 12;
-// FOV horizontal aproximado de la cámara trasera 1x en vertical.
-const H_FOV = 60;
+const MAX_LABELS = 8;
+
+// FOV horizontal aproximado de la cámara trasera 1x (26 mm equiv., sensor 4:3):
+// en vertical el lado corto es el horizontal (~52°); en horizontal, ~66°.
+function hFovFor(w: number, h: number): number {
+  return w >= h ? 66 : 52;
+}
 
 type Fase = "inicio" | "pidiendo" | "visor" | "resultado" | "sin-camara";
 
@@ -22,6 +26,7 @@ export default function CameraPeaks() {
   const [error, setError] = useState<string | null>(null);
   const [chip, setChip] = useState<string | null>(null);
   const [ia, setIa] = useState<"off" | "run" | "done">("off");
+  const [nombres, setNombres] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +42,7 @@ export default function CameraPeaks() {
   const frozenRef = useRef<{ frame: ImageBitmap; heading: number; pitch: number } | null>(null);
   const overridesRef = useRef<Map<string, AnalyzeResult>>(new Map());
   const sensoresOkRef = useRef(false);
+  const nombresRef = useRef(true);
 
   // ---- Sensores -----------------------------------------------------------
 
@@ -169,10 +175,11 @@ export default function CameraPeaks() {
       return;
     }
 
-    const vFov = verticalFovDeg(H_FOV, w, h);
-    const tanH = Math.tan(toRad(H_FOV / 2));
+    const hFov = hFovFor(w, h);
+    const vFov = verticalFovDeg(hFov, w, h);
+    const tanH = Math.tan(toRad(hFov / 2));
     const tanV = Math.tan(toRad(vFov / 2));
-    const visibles = peaksInView(cands, heading, H_FOV, MAX_LABELS);
+    const visibles = peaksInView(cands, heading, hFov, MAX_LABELS);
 
     const puntos = visibles
       .map((p) => {
@@ -197,12 +204,15 @@ export default function CameraPeaks() {
     ctx.textBaseline = "middle";
     ctx.font = `600 ${fontPx}px Barlow, system-ui, sans-serif`;
     ctx.lineJoin = "round";
-    let prevX = -Infinity;
-    let alt = 0;
+    // Los textos van rotados −45°: dos etiquetas se solapan si sus bases caen
+    // en diagonales (x+y = cte) demasiado próximas. Recorremos de izquierda a
+    // derecha y saltamos la que caería encima de la anterior.
+    let prevDiag = -Infinity;
     for (const { p, x, y, ai } of puntos) {
-      alt = x - prevX < fontPx * 4 ? (alt + 1) % 3 : 0;
-      prevX = x;
-      const labelY = Math.max(y - fontPx * (3 + alt * 2.2), fontPx * 1.2);
+      const labelY = Math.max(y - fontPx * 2.4, fontPx * 1.2);
+      const diag = x + labelY;
+      if (diag - prevDiag < fontPx * 1.6) continue;
+      prevDiag = diag;
 
       ctx.strokeStyle = "rgba(255,255,255,0.85)";
       ctx.lineWidth = Math.max(1, fontPx / 12);
@@ -219,7 +229,7 @@ export default function CameraPeaks() {
       const texto = p.ele != null ? `${p.name} · ${Math.round(p.ele)} m` : p.name;
       ctx.save();
       ctx.translate(x, labelY);
-      ctx.rotate(-Math.PI / 5);
+      ctx.rotate(-Math.PI / 4);
       ctx.strokeStyle = "rgba(0,0,0,0.75)";
       ctx.lineWidth = Math.max(3, fontPx / 4);
       ctx.strokeText(texto, fontPx * 0.3, 0);
@@ -239,7 +249,15 @@ export default function CameraPeaks() {
     const video = videoRef.current;
     if (!video) return;
     const loop = () => {
-      if (video.videoWidth > 0 && headingRef.current != null) {
+      if (video.videoWidth > 0 && !nombresRef.current) {
+        // Nombres ocultos: visor limpio, solo la imagen.
+        const canvas = canvasRef.current;
+        if (canvas) {
+          if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+          if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+          canvas.getContext("2d")?.drawImage(video, 0, 0);
+        }
+      } else if (video.videoWidth > 0 && headingRef.current != null) {
         dibujar(video, video.videoWidth, video.videoHeight, headingRef.current, pitchRef.current, false);
       } else if (video.videoWidth > 0) {
         const canvas = canvasRef.current;
@@ -295,10 +313,11 @@ export default function CameraPeaks() {
       c.getContext("2d")!.drawImage(frame, 0, 0, w, h);
       const dataUrl = c.toDataURL("image/jpeg", 0.85);
 
-      const vFov = verticalFovDeg(H_FOV, w, h);
-      const tanH = Math.tan(toRad(H_FOV / 2));
+      const hFov = hFovFor(w, h);
+      const vFov = verticalFovDeg(hFov, w, h);
+      const tanH = Math.tan(toRad(hFov / 2));
       const tanV = Math.tan(toRad(vFov / 2));
-      const visibles = peaksInView(cands, heading, H_FOV, MAX_LABELS);
+      const visibles = peaksInView(cands, heading, hFov, MAX_LABELS);
       const candidates = visibles.map((p) => ({
         name: p.name,
         x: Math.max(0, Math.min(1, 0.5 * (1 + Math.tan(toRad(angleDiffDeg(p.bearingDeg, heading))) / tanH))),
@@ -392,8 +411,22 @@ export default function CameraPeaks() {
       )}
 
       {(fase === "visor" || fase === "resultado") && (
-        <div className="w-full overflow-hidden rounded-2xl border border-line bg-black shadow-card">
+        <div className="relative w-full overflow-hidden rounded-2xl border border-line bg-black shadow-card">
           <canvas ref={canvasRef} className="w-full" />
+          {fase === "visor" && (
+            <button
+              onClick={() => {
+                nombresRef.current = !nombresRef.current;
+                setNombres(nombresRef.current);
+              }}
+              aria-label={nombres ? "Ocultar nombres" : "Mostrar nombres"}
+              className={`absolute right-3 top-3 rounded-full px-3 py-1.5 text-sm font-semibold text-white ${
+                nombres ? "bg-black/60" : "bg-black/35 opacity-60"
+              }`}
+            >
+              {nombres ? "🏔 Nombres" : "🏔 Nombres ✕"}
+            </button>
+          )}
         </div>
       )}
 

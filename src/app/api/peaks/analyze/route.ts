@@ -96,13 +96,17 @@ export async function POST(req: NextRequest) {
                 `orientación de la cámara hemos proyectado dónde deberían aparecer estas cimas ` +
                 `(x: 0 = borde izquierdo, 1 = borde derecho; y: 0 = borde superior, 1 = borde inferior):\n\n` +
                 `${candidateList}\n\n` +
-                `Para cada candidata, dime si realmente se distingue una montaña o pico en la foto ` +
-                `cerca de su posición prevista (visible), con qué confianza (0 a 1), y si procede, ` +
-                `la posición corregida (x, y) de su cumbre en la imagen. Una candidata no es visible ` +
-                `si en esa zona hay cielo, nubes, niebla, edificios o vegetación que la tapa, o si la ` +
-                `foto no llega a cubrir esa dirección. Si la posición prevista ya coincide con una ` +
-                `cumbre clara, devuelve x e y afinadas a esa cumbre. En "notes" resume en una frase ` +
-                `qué se ve en la foto.`,
+                `Las posiciones previstas vienen de sensores (brújula/GPS) y pueden desviarse ` +
+                `varios grados: tu trabajo es corregirlas. Para cada candidata, dime si realmente ` +
+                `se distingue una montaña o pico en la foto cerca de su posición prevista (visible) ` +
+                `y con qué confianza (0 a 1). Una candidata no es visible si en esa zona hay cielo, ` +
+                `nubes, niebla, edificios o vegetación que la tapa, o si la foto no llega a cubrir ` +
+                `esa dirección. Cuando visible sea true, devuelve SIEMPRE x e y corregidas ` +
+                `apuntando con precisión al punto exacto más alto de esa cima en la imagen (el ` +
+                `vértice de su silueta contra el cielo o el relieve de detrás); no repitas la ` +
+                `posición prevista si la cumbre real está algo desplazada. Respeta el orden ` +
+                `relativo izquierda-derecha de las candidatas y no asignes dos candidatas al mismo ` +
+                `punto. En "notes" resume en una frase qué se ve en la foto.`,
             },
           ],
         },

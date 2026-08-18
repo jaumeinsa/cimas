@@ -83,7 +83,8 @@ export function peaksInView(
       b.elevationAngleDeg - a.elevationAngleDeg || (b.ele ?? 0) - (a.ele ?? 0),
   );
 
-  const minSeparationDeg = Math.max(fovDeg / 28, 1.2);
+  // Separación generosa: mejor pocas etiquetas legibles que muchas amontonadas.
+  const minSeparationDeg = Math.max(fovDeg / 14, 2.5);
   const chosen: CandidatePeak[] = [];
   for (const peak of ranked) {
     if (chosen.length >= maxLabels) break;
