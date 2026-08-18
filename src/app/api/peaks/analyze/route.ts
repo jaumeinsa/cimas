@@ -101,7 +101,9 @@ export async function POST(req: NextRequest) {
                 `se distingue una montaña o pico en la foto cerca de su posición prevista (visible) ` +
                 `y con qué confianza (0 a 1). Una candidata no es visible si en esa zona hay cielo, ` +
                 `nubes, niebla, edificios o vegetación que la tapa, o si la foto no llega a cubrir ` +
-                `esa dirección. Cuando visible sea true, devuelve SIEMPRE x e y corregidas ` +
+                `esa dirección. Sé estricto: si no distingues con claridad la silueta de una ` +
+                `cima en esa zona, marca visible=false; es peor etiquetar algo que no se ve que ` +
+                `omitir una etiqueta. Cuando visible sea true, devuelve SIEMPRE x e y corregidas ` +
                 `apuntando con precisión al punto exacto más alto de esa cima en la imagen (el ` +
                 `vértice de su silueta contra el cielo o el relieve de detrás); no repitas la ` +
                 `posición prevista si la cumbre real está algo desplazada. Respeta el orden ` +

@@ -8,7 +8,7 @@
 import { angleDiffDeg, bearingDeg, elevationAngleDeg, haversineM } from "./geo";
 import type { CandidatePeak, Observer, Peak } from "./types";
 
-const MIN_DISTANCE_M = 250;
+const MIN_DISTANCE_M = 150;
 const OCCLUSION_AZIMUTH_DEG = 1.5;
 const OCCLUSION_MARGIN_DEG = 0.25;
 

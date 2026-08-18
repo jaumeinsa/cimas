@@ -27,8 +27,13 @@ independiente, sin base de datos. Se autohospeda en un VPS con Docker + Nginx.
   curvatura+refracción (k=0,13), FOV desde focal 35 mm.
 - `src/lib/peaks/visibility.ts` — selección: oclusión heurística por sectores
   de azimut, deduplicado, cimas en encuadre.
+- `src/lib/peaks/terrain.ts` — oclusión por relieve real: muestrea la altitud
+  del terreno a lo largo de la línea de visión (Open-Meteo, en lotes de 100)
+  y descarta cimas tapadas por lomas sin nombre. Se lanza desde el cliente.
 - `src/app/api/peaks/route.ts` — Overpass (espejos con fallback, User-Agent
-  obligatorio, caché 6 h) + altitud del observador (Open-Meteo).
+  obligatorio, caché 6 h): peaks + volcanes + hills; rellena el tag `ele`
+  ausente con el modelo del terreno (sin él, la cima se perdía) + altitud
+  del observador (Open-Meteo).
 - `src/app/api/peaks/analyze/route.ts` — Claude con visión + salida
   estructurada JSON. Requiere `ANTHROPIC_API_KEY`; sin ella devuelve 503.
 - `scripts/deploy-vps.sh` — despliegue idempotente (Docker, Nginx, Certbot).

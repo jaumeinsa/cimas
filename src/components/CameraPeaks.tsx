@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { angleDiffDeg, toRad, verticalFovDeg } from "@/lib/peaks/geo";
+import { markTerrainOccluded } from "@/lib/peaks/terrain";
 import { computeCandidates, peaksInView } from "@/lib/peaks/visibility";
 import type {
   AnalyzeApiResponse,
@@ -77,11 +78,11 @@ export default function CameraPeaks() {
         const res = await fetch(`/api/peaks?lat=${lat}&lon=${lon}&radius=${SEARCH_RADIUS_M}`);
         if (!res.ok) throw new Error();
         const data = (await res.json()) as PeaksApiResponse;
-        candidatesRef.current = computeCandidates(
-          data.peaks,
-          { lat, lon, ele: data.observerElevation ?? ele },
-          SEARCH_RADIUS_M,
-        );
+        const observer = { lat, lon, ele: data.observerElevation ?? ele };
+        candidatesRef.current = computeCandidates(data.peaks, observer, SEARCH_RADIUS_M);
+        // En segundo plano, descarta las cimas tapadas por el relieve real
+        // (lomas sin nombre incluidas). Si falla, nos quedamos la heurística.
+        markTerrainOccluded(observer, candidatesRef.current).catch(() => {});
         return;
       } catch {
         await new Promise((r) => setTimeout(r, 4000 * (intento + 1)));
@@ -204,24 +205,31 @@ export default function CameraPeaks() {
     ctx.textBaseline = "middle";
     ctx.font = `600 ${fontPx}px Barlow, system-ui, sans-serif`;
     ctx.lineJoin = "round";
-    // Los textos van rotados −45°: dos etiquetas se solapan si sus bases caen
-    // en diagonales (x+y = cte) demasiado próximas. Recorremos de izquierda a
-    // derecha y saltamos la que caería encima de la anterior.
+    // Brazos de longitud variada para que las etiquetas queden a distintas
+    // alturas. Los textos van rotados −45°: dos etiquetas se solapan si sus
+    // bases caen en diagonales (x+y = cte) demasiado próximas, así que de
+    // izquierda a derecha bajamos la etiqueta hasta despejarla y, si no cabe
+    // sin pisar el pico, se omite.
+    const BRAZOS = [2.4, 5.0, 3.6, 6.2];
     let prevDiag = -Infinity;
+    let n = 0;
     for (const { p, x, y, ai } of puntos) {
-      const labelY = Math.max(y - fontPx * 2.4, fontPx * 1.2);
-      const diag = x + labelY;
-      if (diag - prevDiag < fontPx * 1.6) continue;
-      prevDiag = diag;
+      let labelY = Math.max(y - fontPx * BRAZOS[n % BRAZOS.length], fontPx * 1.2);
+      if (x + labelY - prevDiag < fontPx * 1.7) {
+        labelY = prevDiag + fontPx * 1.7 - x;
+        if (labelY > y - fontPx * 1.2) continue;
+      }
+      prevDiag = x + labelY;
+      n++;
 
-      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
       ctx.lineWidth = Math.max(1, fontPx / 12);
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x, labelY + fontPx * 0.7);
       ctx.stroke();
 
-      ctx.fillStyle = ai ? "#f08c00" : "#ffffff";
+      ctx.fillStyle = ai ? "rgba(240,140,0,0.95)" : "rgba(255,255,255,0.9)";
       ctx.beginPath();
       ctx.arc(x, y, Math.max(2.5, fontPx / 5), 0, Math.PI * 2);
       ctx.fill();
@@ -230,10 +238,10 @@ export default function CameraPeaks() {
       ctx.save();
       ctx.translate(x, labelY);
       ctx.rotate(-Math.PI / 4);
-      ctx.strokeStyle = "rgba(0,0,0,0.75)";
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
       ctx.lineWidth = Math.max(3, fontPx / 4);
       ctx.strokeText(texto, fontPx * 0.3, 0);
-      ctx.fillStyle = ai ? "#ffd8a8" : "#ffffff";
+      ctx.fillStyle = ai ? "rgba(255,216,168,0.95)" : "rgba(255,255,255,0.88)";
       ctx.fillText(texto, fontPx * 0.3, 0);
       ctx.restore();
     }

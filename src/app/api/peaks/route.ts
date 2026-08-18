@@ -43,6 +43,9 @@ export async function GET(req: NextRequest) {
       fetchPeaks(lat, lon, radius),
       fetchElevation(lat, lon),
     ]);
+    // Muchas cimas de OSM no llevan el tag `ele`; sin altitud no se pueden
+    // proyectar y antes se perdían. Se rellena con el modelo del terreno.
+    await fillMissingElevations(peaks);
     const data: PeaksApiResponse = { peaks, observerElevation };
     cache.set(key, { at: Date.now(), data });
     return NextResponse.json(data);
@@ -61,6 +64,7 @@ async function fetchPeaks(lat: number, lon: number, radius: number): Promise<Pea
 (
   node["natural"="peak"]["name"](around:${radius},${lat},${lon});
   node["natural"="volcano"]["name"](around:${radius},${lat},${lon});
+  node["natural"="hill"]["name"](around:${radius},${lat},${lon});
 );
 out body qt;`;
 
@@ -108,6 +112,30 @@ function parseEle(raw: string | undefined): number | null {
   const value = parseFloat(raw.replace(",", ".").replace(/[^\d.-]/g, ""));
   if (!Number.isFinite(value) || value < -500 || value > 9000) return null;
   return value;
+}
+
+// Rellena `ele` de las cimas que no lo traen consultando la altitud del
+// terreno en sus coordenadas (Open-Meteo admite 100 puntos por petición).
+async function fillMissingElevations(peaks: Peak[]): Promise<void> {
+  const missing = peaks.filter((p) => p.ele == null).slice(0, 400);
+  for (let i = 0; i < missing.length; i += 100) {
+    const chunk = missing.slice(i, i + 100);
+    try {
+      const res = await fetch(
+        "https://api.open-meteo.com/v1/elevation" +
+          `?latitude=${chunk.map((p) => p.lat.toFixed(5)).join(",")}` +
+          `&longitude=${chunk.map((p) => p.lon.toFixed(5)).join(",")}`,
+        { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(10000) },
+      );
+      if (!res.ok) continue;
+      const json = (await res.json()) as { elevation?: (number | null)[] };
+      json.elevation?.slice(0, chunk.length).forEach((v, j) => {
+        if (typeof v === "number" && Number.isFinite(v)) chunk[j].ele = v;
+      });
+    } catch {
+      // Sin altitud se quedan; el cliente las seguirá descartando.
+    }
+  }
 }
 
 async function fetchElevation(lat: number, lon: number): Promise<number | null> {
