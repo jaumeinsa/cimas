@@ -95,7 +95,7 @@ export default function PeakIdentifier() {
     image.onerror = () => {
       setImg(null);
       setError(
-        "No se pudo mostrar la imagen. Si es un HEIC, conviértela a JPEG (o en iPhone: Ajustes → Cámara → Formatos → Más compatible).",
+        "No se pudo abrir la imagen. En iPhone: Ajustes → Cámara → Formatos → Más compatible, y repite la foto.",
       );
     };
     image.src = url;
@@ -119,13 +119,13 @@ export default function PeakIdentifier() {
       setPosition({ lat: exif.lat, lon: exif.lon, source: "exif" });
       setStatus(
         exif.direction != null
-          ? "Foto con GPS y orientación de cámara: posición y rumbo leídos de la propia foto."
-          : "Foto con GPS pero sin rumbo de cámara: ajusta la orientación con el control o arrastrando la imagen.",
+          ? "Foto con GPS y rumbo ✓"
+          : "Foto con GPS ✓ — si los nombres no cuadran, arrastra la foto",
       );
     } else {
       setPosition(null);
       setStatus(
-        "La foto no lleva GPS (al subirla puede perderse). Usa tu ubicación actual o escribe las coordenadas del lugar donde se tomó.",
+        "Esta foto no dice dónde se hizo",
       );
     }
   }, []);
@@ -134,17 +134,17 @@ export default function PeakIdentifier() {
 
   const useCurrentLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
-      setError("Este navegador no permite acceder a la ubicación.");
+      setError("Este navegador no da acceso a la ubicación");
       return;
     }
-    setStatus("Obteniendo tu ubicación…");
+    setStatus("Buscando tu posición…");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setPosition({ lat: pos.coords.latitude, lon: pos.coords.longitude, source: "gps" });
         if (pos.coords.altitude != null) setExifAltitude(pos.coords.altitude);
-        setStatus("Ubicación obtenida.");
+        setStatus("Posición lista ✓");
       },
-      () => setError("No se pudo obtener la ubicación (permiso denegado o sin señal)."),
+      () => setError("Sin permiso de ubicación"),
       { enableHighAccuracy: true, timeout: 15000 },
     );
   }, []);
@@ -153,7 +153,7 @@ export default function PeakIdentifier() {
     const lat = parseFloat(manualLat.replace(",", "."));
     const lon = parseFloat(manualLon.replace(",", "."));
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-      setError("Coordenadas inválidas. Ejemplo: 42.6329, 0.6572");
+      setError("Coordenadas no válidas (ej.: 42.63, 0.65)");
       return;
     }
     setError(null);
@@ -170,15 +170,15 @@ export default function PeakIdentifier() {
       try {
         const perm = await ctor.requestPermission();
         if (perm !== "granted") {
-          setError("Permiso de brújula denegado.");
+          setError("Sin permiso de brújula");
           return;
         }
       } catch {
-        setError("No se pudo pedir permiso para la brújula.");
+        setError("La brújula no está disponible");
         return;
       }
     }
-    setStatus("Leyendo brújula… apunta el móvil hacia donde se tomó la foto.");
+    setStatus("Apunta el móvil hacia las montañas…");
     const eventName = "ondeviceorientationabsolute" in window
       ? "deviceorientationabsolute"
       : "deviceorientation";
@@ -196,7 +196,7 @@ export default function PeakIdentifier() {
       if (readings >= 5) {
         setHeading(Math.round(value * 10) / 10);
         setHeadingKnown(true);
-        setStatus(`Rumbo de brújula fijado: ${Math.round(value)}°.`);
+        setStatus("Rumbo fijado ✓");
         window.removeEventListener(eventName, listener);
       }
     };
@@ -209,29 +209,36 @@ export default function PeakIdentifier() {
     let cancelled = false;
     setLoadingPeaks(true);
     setError(null);
-    fetch(
-      `/api/peaks?lat=${position.lat}&lon=${position.lon}&radius=${SEARCH_RADIUS_M}`,
-    )
-      .then(async (res) => {
-        if (!res.ok) throw new Error((await res.json()).error ?? "Error");
-        return (await res.json()) as PeaksApiResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setPeaks(data.peaks);
-        setObserverEle(data.observerElevation);
-        if (data.peaks.length === 0) {
-          setStatus("No hay cimas catalogadas en 60 km alrededor de esa posición.");
-        } else {
-          setStatus(`${data.peaks.length} cimas catalogadas en un radio de 60 km.`);
+
+    // El catálogo público de OpenStreetMap falla a ratos: reintenta solo.
+    const load = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch(
+            `/api/peaks?lat=${position.lat}&lon=${position.lon}&radius=${SEARCH_RADIUS_M}`,
+          );
+          if (!res.ok) throw new Error((await res.json()).error ?? "Error");
+          const data = (await res.json()) as PeaksApiResponse;
+          if (cancelled) return;
+          setPeaks(data.peaks);
+          setObserverEle(data.observerElevation);
+          setStatus(data.peaks.length === 0 ? "No hay montañas catalogadas cerca" : null);
+          setLoadingPeaks(false);
+          return;
+        } catch (err) {
+          if (cancelled) return;
+          if (attempt < 2) {
+            setStatus("El mapa de montañas tarda… reintentando ⏳");
+            await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
+          } else {
+            setError(err instanceof Error ? err.message : "Error cargando las montañas");
+            setStatus(null);
+            setLoadingPeaks(false);
+          }
         }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingPeaks(false);
-      });
+      }
+    };
+    void load();
     return () => {
       cancelled = true;
     };
@@ -393,8 +400,8 @@ export default function PeakIdentifier() {
       const hidden = data.results.filter((r) => !r.visible).length;
       setStatus(
         hidden > 0
-          ? `IA: ${hidden} cima(s) descartada(s) por no verse en la foto; posiciones afinadas en verde.`
-          : "IA: todas las cimas previstas parecen visibles; posiciones afinadas en verde.",
+          ? `✨ Quitadas ${hidden} que no se ven en la foto`
+          : "✨ Todo cuadra",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error en el análisis con IA");
@@ -425,12 +432,9 @@ export default function PeakIdentifier() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-paper/70 px-6 py-8 text-center transition hover:border-pine hover:bg-pine-tint/70">
-        <span className="text-3xl">🏔️</span>
-        <span className="font-semibold text-ink">
-          {imgUrl ? "Cambiar de foto" : "Haz o elige una foto de montaña"}
-        </span>
-        <span className="text-sm text-ink-muted">
-          Con la foto original del iPhone se leen el GPS y la orientación de la cámara automáticamente.
+        <span className="text-4xl">📷</span>
+        <span className="text-lg font-semibold text-ink">
+          {imgUrl ? "Cambiar de foto" : "Haz o elige una foto"}
         </span>
         <input
           type="file"
@@ -454,17 +458,15 @@ export default function PeakIdentifier() {
 
       {imgUrl && !position && (
         <div className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4">
-          <p className="text-sm font-medium text-ink">
-            ¿Dónde se tomó la foto?
-          </p>
+          <p className="font-semibold text-ink">¿Dónde estabas al hacer la foto?</p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={useCurrentLocation}
-              className="rounded-lg bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-pine-soft"
+              className="w-full rounded-xl bg-pine px-4 py-3 text-base font-semibold text-white hover:bg-pine-soft"
             >
-              📍 Usar mi ubicación actual
+              📍 Aquí, donde estoy ahora
             </button>
-            <span className="text-sm text-ink-muted">o</span>
+            <span className="w-full text-center text-sm text-ink-muted">o escribe dónde fue:</span>
             <input
               value={manualLat}
               onChange={(e) => setManualLat(e.target.value)}
@@ -481,9 +483,9 @@ export default function PeakIdentifier() {
             />
             <button
               onClick={useManualPosition}
-              className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-ink hover:bg-cream"
+              className="rounded-xl border border-line px-5 py-2.5 text-base font-semibold text-ink hover:bg-cream"
             >
-              Usar coordenadas
+              Vale
             </button>
           </div>
         </div>
@@ -502,15 +504,13 @@ export default function PeakIdentifier() {
             />
           </div>
           <p className="text-center text-xs text-ink-muted">
-            Arrastra sobre la foto para alinear las etiquetas con los picos (izquierda/derecha:
-            rumbo · arriba/abajo: inclinación).
+            👆 Arrastra la foto hasta que los nombres cuadren con los picos
           </p>
 
           <div className="grid gap-4 rounded-xl border border-line bg-paper p-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm text-ink">
               <span>
-                Rumbo de la cámara: <b>{Math.round(heading)}° {cardinal(heading)}</b>
-                {!headingKnown && " (sin dato en la foto: ajústalo)"}
+                Girar: <b>{Math.round(heading)}° {cardinal(heading)}</b>
               </span>
               <input
                 type="range"
@@ -523,7 +523,7 @@ export default function PeakIdentifier() {
             </label>
             <label className="flex flex-col gap-1 text-sm text-ink">
               <span>
-                Ángulo de visión (zoom): <b>{Math.round(hFov)}°</b>
+                Zoom: <b>{Math.round(hFov)}°</b>
               </span>
               <input
                 type="range"
@@ -537,38 +537,38 @@ export default function PeakIdentifier() {
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               <button
                 onClick={useCompass}
-                className="rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink hover:bg-cream"
+                className="flex-1 rounded-xl border border-line px-3 py-3 text-base font-semibold text-ink hover:bg-cream"
               >
-                🧭 Fijar rumbo con la brújula
+                🧭 Brújula
               </button>
               <button
                 onClick={analyze}
                 disabled={analyzing || labeled.length === 0}
-                className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
+                className="flex-1 rounded-xl bg-accent px-3 py-3 text-base font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
               >
-                {analyzing ? "Analizando…" : "✨ Verificar con IA"}
+                {analyzing ? "Mirando… ⏳" : "✨ Comprobar"}
               </button>
               <button
                 onClick={download}
-                className="rounded-lg bg-pine px-3 py-2 text-sm font-semibold text-white hover:bg-pine-soft"
+                className="flex-1 rounded-xl bg-pine px-3 py-3 text-base font-semibold text-white hover:bg-pine-soft"
               >
-                ⬇️ Descargar foto anotada
+                ⬇️ Guardar
               </button>
             </div>
           </div>
 
           {aiNotes && (
             <p className="rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent-dark">
-              <b>IA:</b> {aiNotes}
+              ✨ {aiNotes}
             </p>
           )}
 
-          {loadingPeaks && <p className="text-sm text-ink-muted">Buscando cimas cercanas…</p>}
+          {loadingPeaks && <p className="text-sm text-ink-muted">Buscando montañas cerca… ⏳</p>}
 
           {labeled.length > 0 && (
             <div className="rounded-xl border border-line bg-paper p-4">
               <p className="mb-2 text-sm font-semibold text-ink">
-                Cimas en el encuadre ({labeled.length})
+                En tu foto ({labeled.length})
               </p>
               <ul className="grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
                 {labeled.map((p) => {
@@ -578,7 +578,7 @@ export default function PeakIdentifier() {
                       <b>{p.name}</b>
                       {p.ele != null && ` · ${Math.round(p.ele)} m`} ·{" "}
                       {(p.distanceM / 1000).toFixed(1)} km · {Math.round(p.bearingDeg)}°
-                      {o && !o.visible && " · no visible según la IA"}
+                      {o && !o.visible && " · tapada"}
                     </li>
                   );
                 })}
@@ -588,8 +588,7 @@ export default function PeakIdentifier() {
 
           {!loadingPeaks && peaks && peaks.length > 0 && labeled.length === 0 && (
             <p className="rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent-dark">
-              Hay {peaks.length} cimas catalogadas alrededor, pero ninguna cae en el encuadre
-              actual. Gira el rumbo con el control o arrastrando la foto.
+              Gira la foto (o el control «Girar») hasta encontrar las montañas
             </p>
           )}
         </>
