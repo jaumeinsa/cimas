@@ -19,7 +19,7 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 // La política de OSM exige un User-Agent identificativo; sin él, 406.
-const USER_AGENT = "cimas/1.0 (https://github.com/jaumeinsa/cimas)";
+const USER_AGENT = "rutakon/1.0 (https://rutakon.com)";
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const cache = new Map<string, { at: number; data: PeaksApiResponse }>();

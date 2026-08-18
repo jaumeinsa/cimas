@@ -1,4 +1,4 @@
-# Cimas — despliegue en el VPS.
+# Rutakon — despliegue en el VPS.
 #   cp .env.example .env   (y rellena ANTHROPIC_API_KEY si quieres la IA)
 #   docker compose up -d --build
 #

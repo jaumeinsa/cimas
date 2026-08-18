@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────
-# Cimas — despliegue en VPS (Docker + Nginx + HTTPS)
+# Rutakon — despliegue en VPS (Docker + Nginx + HTTPS)
 #
 # Uso (desde la raíz del repo, en el VPS):
-#   sudo bash scripts/deploy-vps.sh cimas.tudominio.com tu-email@ejemplo.com
+#   sudo bash scripts/deploy-vps.sh rutakon.com tu-email@ejemplo.com
 #
 # Hace:
 #   1. Genera .env si no existe.
@@ -73,11 +73,11 @@ if ! command -v nginx >/dev/null 2>&1; then
 fi
 
 log "Configurando el virtual host de Nginx"
-cat > /etc/nginx/sites-available/cimas <<EOF
+cat > /etc/nginx/sites-available/rutakon <<EOF
 server {
     listen 80;
     listen [::]:80;
-    server_name ${DOMAIN};
+    server_name ${DOMAIN} www.${DOMAIN};
 
     # Las fotos que se mandan a la verificación con IA pueden pesar varios MB.
     client_max_body_size 20m;
@@ -95,7 +95,7 @@ server {
     }
 }
 EOF
-ln -sf /etc/nginx/sites-available/cimas /etc/nginx/sites-enabled/cimas
+ln -sf /etc/nginx/sites-available/rutakon /etc/nginx/sites-enabled/rutakon
 nginx -t && systemctl reload nginx
 echo "  Nginx sirviendo en HTTP."
 
@@ -113,12 +113,16 @@ if [ -n "$SERVER_IP" ] && [ "$DOMAIN_IP" = "$SERVER_IP" ]; then
   log "Emitiendo certificado HTTPS"
   CERTBOT_EMAIL_ARG="--register-unsafely-without-email"
   [ -n "$EMAIL" ] && CERTBOT_EMAIL_ARG="-m ${EMAIL}"
-  certbot --nginx -d "${DOMAIN}" \
+  # Incluye www solo si tambien apunta a este VPS.
+  WWW_IP="$(getent ahostsv4 "www.${DOMAIN}" | awk '{print $1; exit}' || echo "")"
+  CERT_DOMAINS="-d ${DOMAIN}"
+  [ "$WWW_IP" = "$SERVER_IP" ] && CERT_DOMAINS="${CERT_DOMAINS} -d www.${DOMAIN}"
+  certbot --nginx ${CERT_DOMAINS} \
     --non-interactive --agree-tos --redirect ${CERTBOT_EMAIL_ARG}
   echo "  HTTPS activo: https://${DOMAIN}"
 else
   warn "El dominio aún NO resuelve a este VPS (${SERVER_IP:-?})."
-  echo "  1) En tu gestor DNS, crea un registro A:  ${DOMAIN%%.*}  ->  ${SERVER_IP:-IP-del-VPS}"
+  echo "  1) En tu gestor DNS, crea registros A:  @ y www  ->  ${SERVER_IP:-IP-del-VPS}"
   echo "  2) Espera a la propagación (minutos a horas)."
   echo "  3) Vuelve a ejecutar este script, o solo el certbot:"
   echo "       sudo certbot --nginx -d ${DOMAIN} --agree-tos --redirect -m ${EMAIL:-tu-email@ejemplo.com}"

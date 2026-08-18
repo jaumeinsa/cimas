@@ -1,10 +1,10 @@
-# CLAUDE.md — Cimas
+# CLAUDE.md — Rutakon
 
 Contexto para asistentes que trabajen en este repo.
 
 ## Qué es
 
-**Cimas**: sube una foto de montaña y la app etiqueta los picos que aparecen
+**Rutakon** (rutakon.com; repo GitHub: jaumeinsa/cimas): sube una foto de montaña y la app etiqueta los picos que aparecen
 (nombre, altitud, distancia) proyectándolos sobre la imagen. App independiente,
 sin base de datos. Se autohospeda en un VPS con Docker + Nginx.
 

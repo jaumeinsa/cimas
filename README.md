@@ -1,4 +1,4 @@
-# Cimas 🏔️
+# Rutakon 🏔️
 
 **¿Qué montañas salen en mi foto?** Sube una foto de montaña (o hazla desde el
 móvil) y la app etiqueta sobre la propia imagen las cimas que aparecen, con su
@@ -34,10 +34,10 @@ npm run build
 
 ## Despliegue en un VPS (Docker + Nginx + HTTPS)
 
-Con el repo clonado en el VPS (p. ej. en `/opt/cimas`):
+Con el repo clonado en el VPS (p. ej. en `/opt/rutakon`):
 
 ```bash
-sudo bash scripts/deploy-vps.sh cimas.tudominio.com tu-email@ejemplo.com
+sudo bash scripts/deploy-vps.sh rutakon.com tu-email@ejemplo.com
 ```
 
 El script levanta la web con Docker Compose en `127.0.0.1:3010`, configura el
@@ -47,7 +47,7 @@ HTTPS con Certbot. Es idempotente y convive con otras apps en el mismo VPS.
 Actualizaciones:
 
 ```bash
-cd /opt/cimas && git pull && docker compose up -d --build
+cd /opt/rutakon && git pull && docker compose up -d --build
 ```
 
 > **HTTPS importa**: sin él, iOS bloquea la brújula y la geolocalización del

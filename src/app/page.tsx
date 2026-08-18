@@ -2,24 +2,31 @@ import PeakIdentifier from "@/components/PeakIdentifier";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-100 via-slate-50 to-white px-4 py-10">
-      <div className="mx-auto max-w-4xl">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-            ¿Qué montañas salen en mi foto? 🏔️
+    <main className="min-h-screen bg-cream px-4 pb-14">
+      <header className="border-b border-line bg-paper">
+        <div className="mx-auto flex max-w-4xl items-baseline justify-between px-1 py-4">
+          <span className="font-display text-2xl font-semibold text-pine">Rutakon</span>
+          <span className="text-sm text-ink-muted">Tus montañas, con nombre</span>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-4xl pt-10">
+        <section className="mb-8 text-center">
+          <h1 className="font-display text-3xl font-semibold text-pine sm:text-4xl">
+            ¿Qué montañas salen en tu foto?
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-600">
+          <p className="mx-auto mt-3 max-w-2xl text-ink-muted">
             Haz una foto con el móvil (o sube una ya hecha) y te decimos qué cimas aparecen,
             con su nombre, altitud y distancia. Usamos el GPS y la orientación de la cámara
             guardados en la foto, el catálogo de picos de OpenStreetMap y, si quieres,
             verificación con IA.
           </p>
-        </header>
+        </section>
 
         <PeakIdentifier />
 
-        <section className="mx-auto mt-12 max-w-2xl text-sm text-slate-500">
-          <h2 className="mb-2 font-semibold text-slate-700">Cómo funciona</h2>
+        <section className="mx-auto mt-12 max-w-2xl text-sm text-ink-muted">
+          <h2 className="mb-2 font-display text-lg font-semibold text-pine">Cómo funciona</h2>
           <ol className="list-decimal space-y-1 pl-5">
             <li>
               La foto original guarda la posición GPS, la dirección hacia la que apuntaba la
@@ -37,14 +44,18 @@ export default function HomePage() {
               alineación.
             </li>
             <li>
-              Con «Verificar con IA» (API de Anthropic) el modelo mira la foto y descarta las
-              cimas que realmente no se ven (nubes, niebla, obstáculos) y afina la posición de
-              las etiquetas.
+              Con «Verificar con IA» el modelo mira la foto y descarta las cimas que realmente
+              no se ven (nubes, niebla, obstáculos) y afina la posición de las etiquetas.
             </li>
           </ol>
           <p className="mt-4">
             Datos de cimas: © colaboradores de{" "}
-            <a href="https://www.openstreetmap.org" className="underline" rel="noreferrer" target="_blank">
+            <a
+              href="https://www.openstreetmap.org"
+              className="text-pine underline"
+              rel="noreferrer"
+              target="_blank"
+            >
               OpenStreetMap
             </a>
             . Altitud del terreno: Open-Meteo. La foto solo sale de tu dispositivo si usas la

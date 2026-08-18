@@ -1,8 +1,8 @@
 {
-  "name": "cimas",
+  "name": "rutakon",
   "version": "0.1.0",
   "private": true,
-  "description": "Cimas — sube una foto de montaña y descubre qué picos aparecen, con nombre, altitud y distancia.",
+  "description": "Rutakon — sube una foto de montaña y descubre qué picos aparecen, con nombre, altitud y distancia.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

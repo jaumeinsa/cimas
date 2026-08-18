@@ -298,7 +298,7 @@ export default function PeakIdentifier() {
       ctx.lineTo(x, labelY + fontPx * 0.7);
       ctx.stroke();
 
-      ctx.fillStyle = ai ? "#4ade80" : "#ffffff";
+      ctx.fillStyle = ai ? "#f08c00" : "#ffffff";
       ctx.beginPath();
       ctx.arc(x, y, Math.max(2.5, fontPx / 5), 0, Math.PI * 2);
       ctx.fill();
@@ -311,7 +311,7 @@ export default function PeakIdentifier() {
       ctx.strokeStyle = "rgba(0,0,0,0.75)";
       ctx.lineWidth = Math.max(3, fontPx / 4);
       ctx.strokeText(text, fontPx * 0.3, 0);
-      ctx.fillStyle = ai ? "#bbf7d0" : "#ffffff";
+      ctx.fillStyle = ai ? "#ffd8a8" : "#ffffff";
       ctx.fillText(text, fontPx * 0.3, 0);
       ctx.restore();
     }
@@ -424,12 +424,12 @@ export default function PeakIdentifier() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 px-6 py-8 text-center transition hover:border-emerald-500 hover:bg-emerald-50/50">
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-paper/70 px-6 py-8 text-center transition hover:border-pine hover:bg-pine-tint/70">
         <span className="text-3xl">🏔️</span>
-        <span className="font-semibold text-slate-800">
+        <span className="font-semibold text-ink">
           {imgUrl ? "Cambiar de foto" : "Haz o elige una foto de montaña"}
         </span>
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-ink-muted">
           Con la foto original del iPhone se leen el GPS y la orientación de la cámara automáticamente.
         </span>
         <input
@@ -446,42 +446,42 @@ export default function PeakIdentifier() {
       </label>
 
       {status && (
-        <p className="rounded-lg bg-sky-50 px-4 py-2 text-sm text-sky-900">{status}</p>
+        <p className="rounded-lg bg-pine-tint px-4 py-2 text-sm text-pine">{status}</p>
       )}
       {error && (
         <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>
       )}
 
       {imgUrl && !position && (
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-medium text-slate-700">
+        <div className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4">
+          <p className="text-sm font-medium text-ink">
             ¿Dónde se tomó la foto?
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={useCurrentLocation}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="rounded-lg bg-pine px-4 py-2 text-sm font-semibold text-white hover:bg-pine-soft"
             >
               📍 Usar mi ubicación actual
             </button>
-            <span className="text-sm text-slate-400">o</span>
+            <span className="text-sm text-ink-muted">o</span>
             <input
               value={manualLat}
               onChange={(e) => setManualLat(e.target.value)}
               placeholder="Latitud (42.6329)"
               inputMode="decimal"
-              className="w-36 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-36 rounded-lg border border-line px-3 py-2 text-sm"
             />
             <input
               value={manualLon}
               onChange={(e) => setManualLon(e.target.value)}
               placeholder="Longitud (0.6572)"
               inputMode="decimal"
-              className="w-36 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-36 rounded-lg border border-line px-3 py-2 text-sm"
             />
             <button
               onClick={useManualPosition}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-ink hover:bg-cream"
             >
               Usar coordenadas
             </button>
@@ -491,7 +491,7 @@ export default function PeakIdentifier() {
 
       {img && position && (
         <>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-line bg-black shadow-sm">
             <canvas
               ref={canvasRef}
               className="w-full touch-none select-none"
@@ -501,13 +501,13 @@ export default function PeakIdentifier() {
               onPointerUp={onPointerUp}
             />
           </div>
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-ink-muted">
             Arrastra sobre la foto para alinear las etiquetas con los picos (izquierda/derecha:
             rumbo · arriba/abajo: inclinación).
           </p>
 
-          <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm text-slate-700">
+          <div className="grid gap-4 rounded-xl border border-line bg-paper p-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               <span>
                 Rumbo de la cámara: <b>{Math.round(heading)}° {cardinal(heading)}</b>
                 {!headingKnown && " (sin dato en la foto: ajústalo)"}
@@ -521,7 +521,7 @@ export default function PeakIdentifier() {
                 onChange={(e) => setHeading(parseFloat(e.target.value))}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-slate-700">
+            <label className="flex flex-col gap-1 text-sm text-ink">
               <span>
                 Ángulo de visión (zoom): <b>{Math.round(hFov)}°</b>
               </span>
@@ -537,20 +537,20 @@ export default function PeakIdentifier() {
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               <button
                 onClick={useCompass}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink hover:bg-cream"
               >
                 🧭 Fijar rumbo con la brújula
               </button>
               <button
                 onClick={analyze}
                 disabled={analyzing || labeled.length === 0}
-                className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:opacity-50"
               >
                 {analyzing ? "Analizando…" : "✨ Verificar con IA"}
               </button>
               <button
                 onClick={download}
-                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="rounded-lg bg-pine px-3 py-2 text-sm font-semibold text-white hover:bg-pine-soft"
               >
                 ⬇️ Descargar foto anotada
               </button>
@@ -558,19 +558,19 @@ export default function PeakIdentifier() {
           </div>
 
           {aiNotes && (
-            <p className="rounded-lg bg-violet-50 px-4 py-2 text-sm text-violet-900">
+            <p className="rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent-dark">
               <b>IA:</b> {aiNotes}
             </p>
           )}
 
-          {loadingPeaks && <p className="text-sm text-slate-500">Buscando cimas cercanas…</p>}
+          {loadingPeaks && <p className="text-sm text-ink-muted">Buscando cimas cercanas…</p>}
 
           {labeled.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="mb-2 text-sm font-semibold text-slate-800">
+            <div className="rounded-xl border border-line bg-paper p-4">
+              <p className="mb-2 text-sm font-semibold text-ink">
                 Cimas en el encuadre ({labeled.length})
               </p>
-              <ul className="grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+              <ul className="grid gap-1 text-sm text-ink-muted sm:grid-cols-2">
                 {labeled.map((p) => {
                   const o = aiOverrides.get(p.name);
                   return (
@@ -587,7 +587,7 @@ export default function PeakIdentifier() {
           )}
 
           {!loadingPeaks && peaks && peaks.length > 0 && labeled.length === 0 && (
-            <p className="rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            <p className="rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent-dark">
               Hay {peaks.length} cimas catalogadas alrededor, pero ninguna cae en el encuadre
               actual. Gira el rumbo con el control o arrastrando la foto.
             </p>
