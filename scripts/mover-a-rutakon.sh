@@ -19,12 +19,26 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 log() { printf "\n\033[1;34m▶ %s\033[0m\n" "$*"; }
 warn() { printf "\n\033[1;33m⚠ %s\033[0m\n" "$*"; }
 
-# ── 1. Localizar el vhost del planificador (sirve rutakon.com y no es fotos-*)
+# Puertos que ha usado la app de fotos (para reconocer nuestros vhosts por contenido)
+OUR_PORTS='127\.0\.0\.1:(3987|3010)'
+
+# ── 0. Retirar vhosts de intentos anteriores de la propia app de fotos
+for f in /etc/nginx/sites-enabled/rutakon /etc/nginx/sites-enabled/cimas; do
+  if [ -e "$f" ] && grep -qE "proxy_pass http://${OUR_PORTS}" "$(readlink -f "$f")" 2>/dev/null; then
+    log "Retiro vhost antiguo de la app de fotos: $f"
+    REALOLD="$(readlink -f "$f")"
+    rm -f "$f" "$REALOLD"
+  fi
+done
+
+# ── 1. Localizar el vhost del planificador: sirve rutakon.com, no es fotos-*
+#      y NO es nuestro (no hace proxy a los puertos de la app de fotos)
 PLANNER=""
 for f in /etc/nginx/sites-enabled/*; do
   [ -e "$f" ] || continue
   case "$(basename "$f")" in fotos-*) continue ;; esac
-  if grep -qE 'server_name[^;]*rutakon\.com' "$f" 2>/dev/null; then
+  if grep -qE 'server_name[^;]*rutakon\.com' "$f" 2>/dev/null \
+     && ! grep -qE "proxy_pass http://${OUR_PORTS}" "$(readlink -f "$f")" 2>/dev/null; then
     PLANNER="$f"
     break
   fi
@@ -74,6 +88,9 @@ else
   echo "  Crea en el DNS:  A  rutas  →  ${SERVER_IP:-IP-del-VPS}  y reejecuta:"
   echo "    sudo certbot --nginx -d rutas.rutakon.com --redirect --agree-tos -m ${EMAIL:-tu-email}"
 fi
+
+log "Estado final de los vhosts:"
+grep -r server_name /etc/nginx/sites-enabled/ 2>/dev/null || true
 
 log "Reorganización terminada."
 echo "Fotos (cimas):  https://rutakon.com"

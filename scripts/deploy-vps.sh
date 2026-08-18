@@ -7,12 +7,12 @@
 #
 # Hace:
 #   1. Genera .env si no existe.
-#   2. Levanta la web con Docker Compose (127.0.0.1:3010).
+#   2. Levanta la web con Docker Compose (127.0.0.1:${PORT}).
 #   3. Configura Nginx como proxy inverso del dominio.
 #   4. Si el dominio ya resuelve a este VPS, emite el certificado HTTPS.
 #
 # Es idempotente y convive con otras apps del mismo VPS (usa su propio
-# puerto, 3010, y su propio virtual host).
+# puerto, 3987, y su propio virtual host..
 #
 # Si exportas ANTHROPIC_API_KEY antes de ejecutarlo, la escribe en el
 # .env generado:
@@ -22,6 +22,7 @@ set -euo pipefail
 
 DOMAIN="${1:?Uso: deploy-vps.sh <dominio> [email]}"
 EMAIL="${2:-}"
+PORT=3987
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
@@ -53,12 +54,21 @@ if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
 
+# Si el puerto lo usa otro servicio (este VPS aloja varios), avisar claro.
+if curl -fsS --max-time 3 "http://127.0.0.1:${PORT}/api/health" 2>/dev/null | grep -q '"service":"rutakon"'; then
+  :
+elif ss -tln 2>/dev/null | grep -q ":${PORT} "; then
+  warn "El puerto ${PORT} está ocupado por OTRO servicio del VPS."
+  echo "  Cambia el puerto en docker-compose.yml (ports) y en scripts/deploy-vps.sh (PORT=) y reejecuta."
+  exit 1
+fi
+
 log "Construyendo y levantando el contenedor"
 docker compose up -d --build
 
-log "Esperando a que la web responda en 127.0.0.1:3010"
+log "Esperando a que la web responda en 127.0.0.1:${PORT}"
 for i in $(seq 1 60); do
-  if curl -fsS --max-time 3 http://127.0.0.1:3010/api/health >/dev/null 2>&1; then
+  if curl -fsS --max-time 3 http://127.0.0.1:${PORT}/api/health >/dev/null 2>&1; then
     echo "  Web arriba."
     break
   fi
@@ -84,7 +94,7 @@ server {
     client_max_body_size 20m;
 
     location / {
-        proxy_pass http://127.0.0.1:3010;
+        proxy_pass http://127.0.0.1:${PORT};
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -131,6 +141,6 @@ else
 fi
 
 log "Despliegue terminado."
-echo "App: http://127.0.0.1:3010  ·  Público: http(s)://${DOMAIN}"
+echo "App: http://127.0.0.1:${PORT}  ·  Público: http(s)://${DOMAIN}"
 echo "Logs:   docker compose logs -f web"
 echo "Estado: docker compose ps"

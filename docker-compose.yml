@@ -2,8 +2,8 @@
 #   cp .env.example .env   (y rellena ANTHROPIC_API_KEY si quieres la IA)
 #   docker compose up -d --build
 #
-# La web queda en 127.0.0.1:3010 (puerto poco habitual para no chocar con
-# otros servicios del mismo VPS). Pon Nginx/Certbot delante para HTTPS: ver
+# La web queda en 127.0.0.1:3987 (puerto raro a propósito: el VPS aloja
+# varios servicios y el 3010 ya estaba ocupado). Pon Nginx/Certbot delante para HTTPS: ver
 # scripts/deploy-vps.sh.
 
 services:
@@ -12,4 +12,4 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:3010:3000"
+      - "127.0.0.1:3987:3000"

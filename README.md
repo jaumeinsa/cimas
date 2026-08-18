@@ -40,7 +40,7 @@ Con el repo clonado en el VPS (p. ej. en `/opt/rutakon`):
 sudo bash scripts/deploy-vps.sh rutakon.com tu-email@ejemplo.com
 ```
 
-El script levanta la web con Docker Compose en `127.0.0.1:3010`, configura el
+El script levanta la web con Docker Compose en `127.0.0.1:3987`, configura el
 virtual host de Nginx y, si el dominio ya apunta al VPS, emite el certificado
 HTTPS con Certbot. Es idempotente y convive con otras apps en el mismo VPS.
 
