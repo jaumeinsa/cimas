@@ -16,6 +16,12 @@ export default function HomePage() {
             <circle cx="16" cy="4.5" r="2" fill="#d4551a" />
           </svg>
           <span className="font-display text-lg tracking-wide text-ink">RUTAKON</span>
+          <nav className="ml-auto flex items-center gap-4 font-cap text-base font-semibold tracking-wide">
+            <span className="text-ink">FOTOS</span>
+            <a href="https://rutas.rutakon.com" className="text-accent hover:text-accent-dark">
+              RUTAS →
+            </a>
+          </nav>
         </div>
       </header>
 
