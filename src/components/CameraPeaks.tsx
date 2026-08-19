@@ -25,9 +25,11 @@ type Fase = "inicio" | "pidiendo" | "visor" | "resultado" | "sin-camara";
 export default function CameraPeaks() {
   const [fase, setFase] = useState<Fase>("inicio");
   const [error, setError] = useState<string | null>(null);
-  const [chip, setChip] = useState<string | null>(null);
   const [ia, setIa] = useState<"off" | "run" | "done">("off");
   const [nombres, setNombres] = useState(true);
+  const [tieneGps, setTieneGps] = useState(false);
+  const [listo, setListo] = useState(false); // cimas cargadas
+  const [hayNombres, setHayNombres] = useState(false); // hay etiquetas en pantalla
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,6 +46,7 @@ export default function CameraPeaks() {
   const overridesRef = useRef<Map<string, AnalyzeResult>>(new Map());
   const sensoresOkRef = useRef(false);
   const nombresRef = useRef(true);
+  const hayNombresRef = useRef(false);
 
   // ---- Sensores -----------------------------------------------------------
 
@@ -73,19 +76,44 @@ export default function CameraPeaks() {
   }, []);
 
   const cargarCimas = useCallback(async (lat: number, lon: number, ele: number) => {
+    const usar = (data: PeaksApiResponse) => {
+      const observer = { lat, lon, ele: data.observerElevation ?? ele };
+      candidatesRef.current = computeCandidates(data.peaks, observer, SEARCH_RADIUS_M);
+      setListo(true);
+      // En segundo plano, descarta las cimas tapadas por el relieve real
+      // (lomas sin nombre incluidas). Si falla, nos quedamos la heurística.
+      markTerrainOccluded(observer, candidatesRef.current).catch(() => {});
+    };
+
+    // Caché local: en la misma zona (~1 km) las cimas aparecen al instante.
+    const cacheKey = `rutakon-peaks-${lat.toFixed(2)},${lon.toFixed(2)}`;
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const hit = JSON.parse(raw) as { at: number; data: PeaksApiResponse };
+        if (Date.now() - hit.at < 24 * 60 * 60 * 1000 && hit.data?.peaks?.length) {
+          usar(hit.data);
+          return;
+        }
+      }
+    } catch {
+      /* caché corrupta o sin localStorage: se ignora */
+    }
+
     for (let intento = 0; intento < 3; intento++) {
       try {
         const res = await fetch(`/api/peaks?lat=${lat}&lon=${lon}&radius=${SEARCH_RADIUS_M}`);
         if (!res.ok) throw new Error();
         const data = (await res.json()) as PeaksApiResponse;
-        const observer = { lat, lon, ele: data.observerElevation ?? ele };
-        candidatesRef.current = computeCandidates(data.peaks, observer, SEARCH_RADIUS_M);
-        // En segundo plano, descarta las cimas tapadas por el relieve real
-        // (lomas sin nombre incluidas). Si falla, nos quedamos la heurística.
-        markTerrainOccluded(observer, candidatesRef.current).catch(() => {});
+        usar(data);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data }));
+        } catch {
+          /* localStorage lleno o bloqueado: da igual */
+        }
         return;
       } catch {
-        await new Promise((r) => setTimeout(r, 4000 * (intento + 1)));
+        await new Promise((r) => setTimeout(r, 3000 * (intento + 1)));
       }
     }
     setError("No se pudo cargar el mapa de montañas. Prueba otra vez.");
@@ -124,6 +152,7 @@ export default function CameraPeaks() {
               lon: pos.coords.longitude,
               ele: pos.coords.altitude ?? 0,
             };
+            setTieneGps(true);
             if (primera) void cargarCimas(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude ?? 0);
           },
           () => setError("Necesito tu ubicación para saber qué montañas tienes delante."),
@@ -143,6 +172,8 @@ export default function CameraPeaks() {
 
       overridesRef.current = new Map();
       frozenRef.current = null;
+      hayNombresRef.current = false;
+      setHayNombres(false);
       setIa("off");
       setFase("visor");
     } catch (err) {
@@ -171,10 +202,7 @@ export default function CameraPeaks() {
     const cands = candidatesRef.current;
     const fontPx = Math.max(13, Math.round(w / 34));
 
-    if (cands.length === 0) {
-      pintarChip(ctx, w, h, fontPx, posRef.current ? "Cargando montañas… ⏳" : "Buscando GPS… 📡");
-      return;
-    }
+    if (cands.length === 0) return; // el estado de carga lo cuenta el overlay
 
     const hFov = hFovFor(w, h);
     const vFov = verticalFovDeg(hFov, w, h);
@@ -248,6 +276,10 @@ export default function CameraPeaks() {
 
     if (congelado) {
       pintarChip(ctx, w, h, fontPx, "RUTAKON · rutakon.com");
+    } else if ((n > 0) !== hayNombresRef.current) {
+      // Habilita o apaga el disparador según haya etiquetas en pantalla.
+      hayNombresRef.current = n > 0;
+      setHayNombres(n > 0);
     }
   }, []);
 
@@ -257,26 +289,15 @@ export default function CameraPeaks() {
     const video = videoRef.current;
     if (!video) return;
     const loop = () => {
-      if (video.videoWidth > 0 && !nombresRef.current) {
-        // Nombres ocultos: visor limpio, solo la imagen.
+      if (video.videoWidth > 0 && nombresRef.current && headingRef.current != null) {
+        dibujar(video, video.videoWidth, video.videoHeight, headingRef.current, pitchRef.current, false);
+      } else if (video.videoWidth > 0) {
+        // Nombres ocultos o brújula aún sin lectura: solo la imagen.
         const canvas = canvasRef.current;
         if (canvas) {
           if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
           if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
           canvas.getContext("2d")?.drawImage(video, 0, 0);
-        }
-      } else if (video.videoWidth > 0 && headingRef.current != null) {
-        dibujar(video, video.videoWidth, video.videoHeight, headingRef.current, pitchRef.current, false);
-      } else if (video.videoWidth > 0) {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(video, 0, 0);
-            pintarChip(ctx, canvas.width, canvas.height, Math.round(canvas.width / 34), "Calibrando brújula… 🧭");
-          }
         }
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -290,6 +311,7 @@ export default function CameraPeaks() {
   const disparar = useCallback(async () => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return;
+    if (!hayNombresRef.current) return; // sin nombres en pantalla no hay foto
     const heading = headingRef.current ?? 0;
     const pitch = pitchRef.current;
     const frame = await createImageBitmap(video);
@@ -345,7 +367,55 @@ export default function CameraPeaks() {
       });
       if (!res.ok) throw new Error();
       const data = (await res.json()) as AnalyzeApiResponse;
-      overridesRef.current = new Map(data.results.map((r) => [r.name, r]));
+      const mapa = new Map(data.results.map((r) => [r.name, r]));
+
+      // Cordura sobre las correcciones de la IA: el orden real izquierda→
+      // derecha de las cimas es geometría, no opinión. Una corrección que
+      // cruza ese orden o se teletransporta es una asignación errónea
+      // (p. ej. colgar el nombre en la cumbre llamativa de al lado): se
+      // descarta y esa cima vuelve a su posición por sensores.
+      const porX = candidates
+        .map((c) => ({ c, o: mapa.get(c.name) }))
+        .filter(
+          (par): par is { c: (typeof candidates)[number]; o: AnalyzeResult } =>
+            par.o != null && par.o.visible && par.o.x != null && par.o.y != null,
+        )
+        .sort((a, b) => a.c.x - b.c.x);
+      for (const { c, o } of porX) {
+        if (Math.abs((o.x as number) - c.x) > 0.4 || Math.abs((o.y as number) - c.y) > 0.45) {
+          o.x = null;
+          o.y = null;
+        }
+      }
+      const conX = porX.filter(({ o }) => o.x != null);
+      // Subsecuencia no decreciente más larga de las x corregidas: lo que
+      // quede fuera rompe el orden y pierde su corrección.
+      const lis: number[] = [];
+      const prev: number[] = new Array(conX.length).fill(-1);
+      let mejorFin = -1;
+      const largo: number[] = new Array(conX.length).fill(1);
+      for (let i = 0; i < conX.length; i++) {
+        for (let j = 0; j < i; j++) {
+          if (
+            (conX[j].o.x as number) <= (conX[i].o.x as number) + 0.01 &&
+            largo[j] + 1 > largo[i]
+          ) {
+            largo[i] = largo[j] + 1;
+            prev[i] = j;
+          }
+        }
+        if (mejorFin === -1 || largo[i] > largo[mejorFin]) mejorFin = i;
+      }
+      for (let i = mejorFin; i !== -1; i = prev[i]) lis.push(i);
+      const enOrden = new Set(lis);
+      conX.forEach(({ o }, i) => {
+        if (!enOrden.has(i)) {
+          o.x = null;
+          o.y = null;
+        }
+      });
+
+      overridesRef.current = mapa;
       const fz = frozenRef.current;
       if (fz) dibujar(fz.frame, fz.frame.width, fz.frame.height, fz.heading, fz.pitch, true);
       setIa("done");
@@ -435,15 +505,43 @@ export default function CameraPeaks() {
               {nombres ? "🏔 Nombres" : "🏔 Nombres ✕"}
             </button>
           )}
+          {fase === "visor" && nombres && !hayNombres && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl bg-black/60 px-6 py-5 text-white">
+                {listo ? (
+                  <span className="text-3xl">🧭</span>
+                ) : (
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+                )}
+                <p className="text-base font-semibold">
+                  {!tieneGps
+                    ? "Buscando tu posición… 📡"
+                    : !listo
+                      ? "Cargando montañas… ⏳"
+                      : "Gira hacia las montañas"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {fase === "visor" && (
-        <button
-          onClick={disparar}
-          aria-label="Disparar"
-          className="h-20 w-20 rounded-full border-4 border-paper bg-accent shadow-card active:scale-95"
-        />
+        <>
+          <button
+            onClick={disparar}
+            disabled={!hayNombres}
+            aria-label="Disparar"
+            className={`h-20 w-20 rounded-full border-4 border-paper shadow-card transition-colors ${
+              hayNombres ? "bg-accent active:scale-95" : "bg-line"
+            }`}
+          />
+          <p className="text-center text-sm text-ink-muted">
+            {hayNombres
+              ? "Haz la foto 📸 y las cimas quedan etiquetadas en su punto exacto."
+              : "Cuando salgan los nombres podrás disparar."}
+          </p>
+        </>
       )}
 
       {fase === "resultado" && (

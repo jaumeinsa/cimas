@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
 async function fetchPeaks(lat: number, lon: number, radius: number): Promise<Peak[]> {
   const query = `
-[out:json][timeout:25];
+[out:json][timeout:12];
 (
   node["natural"="peak"]["name"](around:${radius},${lat},${lon});
   node["natural"="volcano"]["name"](around:${radius},${lat},${lon});
@@ -78,7 +78,7 @@ out body qt;`;
           "User-Agent": USER_AGENT,
         },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) throw new Error(`Overpass ${endpoint} → HTTP ${res.status}`);
       // Overpass devuelve errores como HTML incluso con estado 200.
@@ -118,8 +118,10 @@ function parseEle(raw: string | undefined): number | null {
 // terreno en sus coordenadas (Open-Meteo admite 100 puntos por petición).
 async function fillMissingElevations(peaks: Peak[]): Promise<void> {
   const missing = peaks.filter((p) => p.ele == null).slice(0, 400);
-  for (let i = 0; i < missing.length; i += 100) {
-    const chunk = missing.slice(i, i + 100);
+  const chunks: Peak[][] = [];
+  for (let i = 0; i < missing.length; i += 100) chunks.push(missing.slice(i, i + 100));
+  // En paralelo: cada lote es una petición independiente.
+  await Promise.all(chunks.map(async (chunk) => {
     try {
       const res = await fetch(
         "https://api.open-meteo.com/v1/elevation" +
@@ -127,7 +129,7 @@ async function fillMissingElevations(peaks: Peak[]): Promise<void> {
           `&longitude=${chunk.map((p) => p.lon.toFixed(5)).join(",")}`,
         { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(10000) },
       );
-      if (!res.ok) continue;
+      if (!res.ok) return;
       const json = (await res.json()) as { elevation?: (number | null)[] };
       json.elevation?.slice(0, chunk.length).forEach((v, j) => {
         if (typeof v === "number" && Number.isFinite(v)) chunk[j].ele = v;
@@ -135,7 +137,7 @@ async function fillMissingElevations(peaks: Peak[]): Promise<void> {
     } catch {
       // Sin altitud se quedan; el cliente las seguirá descartando.
     }
-  }
+  }));
 }
 
 async function fetchElevation(lat: number, lon: number): Promise<number | null> {

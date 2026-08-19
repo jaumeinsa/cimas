@@ -96,8 +96,14 @@ export async function POST(req: NextRequest) {
                 `orientación de la cámara hemos proyectado dónde deberían aparecer estas cimas ` +
                 `(x: 0 = borde izquierdo, 1 = borde derecho; y: 0 = borde superior, 1 = borde inferior):\n\n` +
                 `${candidateList}\n\n` +
-                `Las posiciones previstas vienen de sensores (brújula/GPS) y pueden desviarse ` +
-                `varios grados: tu trabajo es corregirlas. Para cada candidata, dime si realmente ` +
+                `Las posiciones previstas vienen de sensores. El error dominante es de brújula: ` +
+                `desplaza TODAS las candidatas horizontalmente casi el mismo offset, así que la ` +
+                `separación horizontal RELATIVA entre candidatas sí es fiable. Estrategia: deduce ` +
+                `primero ese desplazamiento global comparando el patrón completo de candidatas con ` +
+                `las cumbres reales de la foto, y luego asigna cada candidata a una cumbre DISTINTA ` +
+                `manteniendo su orden y su espaciado relativo. Nunca muevas una candidata suelta a ` +
+                `la cumbre llamativa de al lado: si el espaciado no encaja, esa cumbre es de otra ` +
+                `candidata (o de ninguna). Para cada candidata, dime si realmente ` +
                 `se distingue una montaña o pico en la foto cerca de su posición prevista (visible) ` +
                 `y con qué confianza (0 a 1). Una candidata no es visible si en esa zona hay cielo, ` +
                 `nubes, niebla, edificios o vegetación que la tapa, o si la foto no llega a cubrir ` +
